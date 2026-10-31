@@ -6,30 +6,72 @@ import { sfx, startAmbient } from './audio.js';
 import { DIST_TYPES, EDGES } from './data-client.js';
 
 const $ = (id) => document.getElementById(id);
-const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
-let my = null, code = null, state = null, board = null;
+let ws = null, my = null, code = null, state = null, board = null;
 let selFrom = null, selMode = null;      // seleção no tabuleiro
 let lastEventId = null, tutorialShown = false;
 
-// ---------- rede ----------
-ws.onopen = () => console.log('conectado');
-ws.onmessage = (e) => {
-  const m = JSON.parse(e.data);
+// ---------- rede (transporte duplo: WebSocket local / long-polling em produção) ----------
+// Auto-detecção: localhost usa WebSocket; fora (produção/serverless) usa HTTP long-polling.
+const USE_WS = ['localhost', '127.0.0.1'].includes(location.hostname);
+let lpToken = null, lpSeq = 0, lpActive = false, lpFailures = 0;
+
+function handleNet(m) {
   if (m.type === 'error') return toast('⚠ ' + m.error);
-  if (m.type === 'room_created') { code = m.code; }
+  if (m.type === 'room_created') { code = m.code; $('roomCodeLabel').textContent = code; }
   if (m.type === 'joined') {
     code = m.code;
     $('lobby').classList.add('hidden');
     if (m.spectator) { $('room').classList.add('hidden'); enterGame(); }
     else $('room').classList.remove('hidden');
+    $('roomCodeLabel').textContent = code;
   }
-  if (m.type === 'room_created') { $('roomCodeLabel').textContent = code; }
   if (m.type === 'state') { my = m.you; state = m.state; render(m.players, m.config, m.spectators); }
   if (m.type === 'chat') addChat(m.from, m.text);
   if (m.type === 'victory') showVictory(m.winner);
+}
+
+if (USE_WS) {
+  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
+  ws.onopen = () => console.log('conectado (websocket)');
+  ws.onmessage = (e) => handleNet(JSON.parse(e.data));
+  ws.onclose = () => { toast('Conexão perdida — reconectando...'); setTimeout(() => location.reload(), 1500); };
+} else {
+  console.log('transporte: long-polling');
+}
+
+async function lpAction(type, extra = {}) {
+  const r = await fetch('/api/action', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, code, token: lpToken, ...extra }),
+  });
+  const data = await r.json().catch(() => ({ error: 'resposta inválida' }));
+  if (data.error) { toast('⚠ ' + data.error); return data; }
+  for (const ev of (data.events || [])) handleNet(ev);
+  if (data.token && !lpToken) { lpToken = data.token; startLpLoop(); }
+  return data;
+}
+
+async function lpLoop() {
+  while (lpActive && lpToken) {
+    try {
+      const r = await fetch(`/api/poll?code=${code}&token=${lpToken}&seq=${lpSeq}&wait=20000`);
+      if (r.status === 404) { toast('Sala encerrada.'); return; }
+      const data = await r.json();
+      if (data.seq) lpSeq = data.seq;
+      for (const ev of (data.events || [])) handleNet(ev);
+      lpFailures = 0;
+    } catch {
+      if (++lpFailures > 3) { toast('Conexão perdida — reconectando...'); return setTimeout(() => location.reload(), 1500); }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+}
+function startLpLoop() { if (!lpActive) { lpActive = true; lpLoop(); } }
+
+const send = (type, extra = {}) => {
+  if (USE_WS && ws && ws.readyState === 1) ws.send(JSON.stringify({ type, ...extra }));
+  else lpAction(type, extra);
 };
-ws.onclose = () => { toast('Conexão perdida — reconectando...'); setTimeout(() => location.reload(), 1500); };
-const send = (type, extra = {}) => ws.send(JSON.stringify({ type, ...extra }));
 
 // ---------- lobby ----------
 $('btnCreate3').onclick = () => createRoom(3);

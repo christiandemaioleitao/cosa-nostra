@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "client",
+  "functions": {
+    "api/**/*.js": { "maxDuration": 30 }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    }
+  ]
+}
