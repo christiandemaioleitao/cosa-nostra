@@ -28,6 +28,18 @@
           <button id="btnCreate4" class="gold">Criar sala (4)</button>
         </div>
         <div class="row">
+          <button id="btnSolo3" class="gold">🤖 Solo (3 jog.)</button>
+          <button id="btnSolo4" class="gold">🤖 Solo (4 jog.)</button>
+        </div>
+        <div class="row">
+          <label class="opt" for="optDifficulty">Dificuldade dos bots:</label>
+          <select id="optDifficulty">
+            <option value="facil">Fácil</option>
+            <option value="medio" selected>Médio</option>
+            <option value="dificil">Difícil</option>
+          </select>
+        </div>
+        <div class="row">
           <input id="roomCode" placeholder="Código da sala" maxlength="8" style="text-transform:uppercase">
           <button id="btnJoin">Entrar</button>
         </div>
@@ -41,6 +53,7 @@
     <div class="panel">
       <h3>Sala <span id="roomCodeLabel"></span></h3>
       <ul id="playerList"></ul>
+      <p class="hint" id="roomMode"></p>
       <button id="btnReady">Estou pronto</button>
       <button id="btnStart" class="gold hidden">Iniciar partida</button>
       <p class="hint">Compartilhe o código acima com os outros dons.</p>

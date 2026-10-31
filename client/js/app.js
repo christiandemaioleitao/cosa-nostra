@@ -89,11 +89,14 @@ $('btnJoin').onclick = () => {
   if (!c) return toast('Informe o código da sala');
   send('join_room', { name, code: c });
 };
-function createRoom(n) {
+function createRoom(n, bots = 0) {
   const name = $('playerName').value.trim() || 'Anônimo';
   const timer = $('optTimer').checked ? 120 : 0;
-  send('create_room', { name, players: n, timer });
+  const difficulty = $('optDifficulty') ? $('optDifficulty').value : 'medio';
+  send('create_room', { name, players: n, timer, bots, difficulty });
 }
+$('btnSolo3').onclick = () => createRoom(3, 2);
+$('btnSolo4').onclick = () => createRoom(4, 3);
 $('btnReady').onclick = () => { sfx.click(); const btn = $('btnReady'); btn.p = !btn.p; send('ready', { ready: btn.p }); btn.textContent = btn.p ? 'Pronto ✓' : 'Estou pronto'; };
 $('btnStart').onclick = () => { sfx.card(); send('start_game'); };
 
@@ -112,13 +115,17 @@ function addChat(from, text) {
 const escapeHtml = (s) => s.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 
 // ---------- render ----------
+let lastPlayers = [], lastConfig = {};
 function render(players, config, spectators) {
   if (!state) return;
+  lastPlayers = players || []; lastConfig = config || {};
   if (state.phase) enterGame();
   $('roomCodeLabel').textContent = code || '';
 
   // lista da sala
   $('playerList').innerHTML = players.map(p => `<li>${p.name} — ${p.family || 'aguardando…'} ${p.ready ? '✓' : ''}</li>`).join('');
+  if (config && config.bots) $('roomMode').textContent = `🤖 Modo SOLO — ${config.bots} robôs (dificuldade: ${({ facil: 'Fácil', medio: 'Médio', dificil: 'Difícil' })[config.difficulty] || config.difficulty})`;
+  else $('roomMode').textContent = '';
   $('btnStart').classList.toggle('hidden', !(players.length && players.every(p => p.ready) && players.length >= 3));
 
   if (state.phase) renderGame();
@@ -143,10 +150,11 @@ function enterGame() {
 
 function renderGame() {
   const s = state;
-  // topo: famílias
+  // topo: famílias (com nome do bot quando controlado por robô)
+  const botNameOf = (f) => (lastPlayers.find(p => p.family === f && /^Bot/.test(p.name || '')) || {}).name;
   $('famTabs').innerHTML = Object.entries(s.players).map(([f, p]) =>
     `<span class="${f === my ? 'active' : ''} ${s.order[s.turnIdx % s.order.length] === f && s.phase === 'acoes' ? 'current' : ''}"
-      style="border-color:#${(FAMC[f] || 0x888888).toString(16).padStart(6, '0')}">${f} 👑${p.influence} 🎖${p.respect} 💰${p.money}$</span>`).join('');
+      style="border-color:#${(FAMC[f] || 0x888888).toString(16).padStart(6, '0')}">${f}${botNameOf(f) ? ` <small>(${botNameOf(f)})</small>` : ''} 👑${p.influence} 🎖${p.respect} 💰${p.money}$</span>`).join('');
   $('roundInfo').textContent = `Rodada ${s.round} • ${phaseName(s.phase)} • Vez de ${s.order[s.turnIdx % s.order.length] || '—'}`;
 
   // meu painel

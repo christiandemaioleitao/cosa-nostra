@@ -9,6 +9,7 @@
 const crypto = require('crypto');
 const { Game } = require('./engine');
 const { FAMILIES } = require('./data');
+const bots = require('./bots');
 
 const rooms = new Map(); // code -> Room
 const genCode = () => Array.from({ length: 6 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 31)]).join('');
@@ -25,6 +26,10 @@ class Room {
     this.seq = 1;             // último seq emitido
     this.events = [];         // [{seq, type, data, to: token|null, audience:'all'|'token'}]
     this.turnDeadline = 0;    // 0 = sem timer
+    this.bots = 0;            // nº de robôs (0 = multiplayer normal)
+    this.difficulty = 'medio';
+    this.botFingerprint = null; // situação atual aguardada pelo bot
+    this.botNextAt = 0;         // timestamp em que o bot pode agir (delay natural)
   }
   playersInfo() {
     return this.clients.map(c => ({ name: c.name, family: c.family, ready: c.ready, connected: c.connected }));
@@ -48,13 +53,14 @@ function emitState(room) {
   room.emit('state', {
     state: publicState(room),
     players: room.playersInfo(),
-    config: { timer: room.timer, targetPlayers: room.targetPlayers },
+    config: { timer: room.timer, targetPlayers: room.targetPlayers, bots: room.bots, difficulty: room.difficulty },
     spectators: room.spectators.length,
   });
 }
 
 /** Processa timer de turno de forma "lazy" (compatível com serverless). */
 function lazyTick(room) {
+  botTick(room);
   if (!room.game || !room.turnDeadline) return;
   if (Date.now() < room.turnDeadline) return;
   const g = room.game;
@@ -68,8 +74,17 @@ function lazyTick(room) {
   if (g.st.winner) room.emit('victory', { winner: g.st.winner });
 }
 
-function createRoom(name, players, timer) {
+function createRoom(name, players, timer, opts = {}) {
   const room = new Room(name, players === 4 ? 4 : 3, timer);
+  // modo SOLO com robôs: preenche os assentos restantes com bots
+  const nBots = parseInt(opts.bots, 10);
+  if (nBots === 2 || nBots === 3) {
+    room.bots = nBots;
+    room.difficulty = ['facil', 'medio', 'dificil'].includes(opts.difficulty) ? opts.difficulty : 'medio';
+    for (let i = 1; i <= nBots; i++) {
+      room.clients.push({ token: genToken(), name: `Bot 🤖 ${i}`, family: null, ready: true, connected: true, bot: true });
+    }
+  }
   rooms.set(room.code, room);
   return room;
 }
@@ -146,6 +161,49 @@ function handleMessage(room, client, m) {
 }
 
 /**
+ * IA dos bots — roda no LADO SERVIDOR. Executa a próxima decisão do bot
+ * (taxa de renda, aposta em disputa, resposta de negociação ou ação), com
+ * um pequeno delay entre ações para parecer natural.
+ */
+function botTick(room) {
+  if (!room.game || !room.bots || room.game.st.winner) return;
+  const g = room.game, s = g.st;
+  const botFam = (f) => room.clients.some(c => c.bot && c.family === f);
+  const diff = room.difficulty;
+  // situação atual aguardada (fingerprint) — muda quando o estado avança
+  let fp = null, exec = null;
+  if (s.phase === 'renda' && s.pendingIncome) {
+    const f = Object.keys(s.pendingIncome).find(x => botFam(x) && !s.pendingIncome[x]);
+    if (f) { fp = `taxa:${s.round}:${f}`; exec = () => { g.setTax(f, bots.botTax(diff, f, s)); emitState(room); }; }
+  } else if (s.dispute && s.dispute.stage === 'apostas') {
+    const f = [s.dispute.attacker, s.dispute.defender].find(x => botFam(x) && s.dispute.bets[x] === undefined);
+    if (f) { fp = `aposta:${s.round}:${s.dispute.to}:${f}`; exec = () => { g.disputeBet(f, bots.botBet(diff, f, s, s.dispute)); emitState(room); }; }
+  } else if (s.pendingOffer && botFam(s.pendingOffer.to)) {
+    const o = s.pendingOffer;
+    fp = `oferta:${s.round}:${o.from}:${o.to}`;
+    exec = () => { g.respond(o.to, bots.botRespond(diff, o)); emitState(room); };
+  } else if (s.phase === 'acoes' && !s.dispute && !s.pendingOffer) {
+    const cur = g.current();
+    if (botFam(cur)) {
+      fp = `acao:${s.round}:${s.circuit}:${s.turnIdx}`;
+      exec = () => {
+        const cands = bots.botActionCandidates(diff, room, cur);
+        let done = false;
+        for (const a of cands) { if (g.act(cur, a).ok) { done = true; break; } }
+        if (!done) g.act(cur, { type: 'fazer_caixa' });
+        emitState(room);
+        if (g.st.winner) room.emit('victory', { winner: g.st.winner });
+      };
+    }
+  }
+  if (!fp || !exec) { room.botFingerprint = null; return; }
+  if (fp !== room.botFingerprint) { room.botFingerprint = fp; room.botNextAt = Date.now() + bots.botDelay(); return; }
+  if (Date.now() < room.botNextAt) return;
+  room.botFingerprint = null;
+  try { exec(); } catch (e) { console.error('[bots] erro na ação do bot:', e); }
+}
+
+/**
  * Espera por eventos novos (seq > since) por até waitMs ms, processando
  * timers lazy a cada segundo. Resolve imediatamente se já houver eventos.
  */
@@ -174,7 +232,7 @@ function pollRoom(code, token, since, waitMs) {
 
 function joinOrCreate(payload) {
   if (payload.type === 'create_room') {
-    const room = createRoom(payload.name, payload.players, payload.timer);
+    const room = createRoom(payload.name, payload.players, payload.timer, { bots: payload.bots, difficulty: payload.difficulty });
     const token = genToken();
     const client = join(room, token, payload.name);
     return { room, token, client, actorEvents: [{ type: 'room_created', code: room.code }, { type: 'joined', code: room.code, spectator: false }] };
@@ -200,4 +258,4 @@ function joinOrCreate(payload) {
   return { error: 'Operação inválida' };
 }
 
-module.exports = { rooms, Room, createRoom, handleMessage, pollRoom, joinOrCreate, emitState, lazyTick, publicState, genToken };
+module.exports = { rooms, Room, createRoom, handleMessage, pollRoom, joinOrCreate, emitState, lazyTick, botTick, publicState, genToken };

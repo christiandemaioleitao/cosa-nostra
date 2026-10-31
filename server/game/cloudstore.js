@@ -23,6 +23,8 @@ function serialize(room) {
     code: room.code, targetPlayers: room.targetPlayers, timer: room.timer,
     clients: room.clients, spectators: room.spectators, chat: room.chat,
     seq: room.seq, events: room.events, turnDeadline: room.turnDeadline,
+    bots: room.bots, difficulty: room.difficulty,
+    botFingerprint: room.botFingerprint, botNextAt: room.botNextAt,
     game: room.game ? { families: room.game.families, state: room.game.state } : null,
   });
 }
@@ -33,6 +35,10 @@ function deserialize(json) {
   room.clients = d.clients || []; room.spectators = d.spectators || [];
   room.chat = d.chat || []; room.seq = d.seq || 1; room.events = d.events || [];
   room.turnDeadline = d.turnDeadline || 0;
+  room.bots = d.bots || 0;
+  room.difficulty = d.difficulty || 'medio';
+  room.botFingerprint = d.botFingerprint || null;
+  room.botNextAt = d.botNextAt || 0;
   if (d.game) {
     room.game = new Game(d.game.families, { rawState: d.game.state });
   }
