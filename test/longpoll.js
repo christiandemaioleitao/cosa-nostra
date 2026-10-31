@@ -3,7 +3,7 @@
  * iniciam partida e jogam turnos (renda + ações) via /api/action + /api/poll.
  * Uso: node test/longpoll.js [porta_base]
  */
-const BASE = `http://localhost:${parseInt(process.argv[2] || '8420', 10)}`;
+const BASE = process.env.CN_BASE || `http://localhost:${parseInt(process.argv[2] || '8420', 10)}`;
 const log = (...a) => console.log('[LP-TEST]', ...a);
 const failures = [];
 function assert(cond, msg) { if (cond) log('✔', msg); else { failures.push(msg); log('✘ FALHOU:', msg); } }

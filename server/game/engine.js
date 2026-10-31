@@ -21,6 +21,7 @@ class Game {
   constructor(families, opts = {}) {
     this.families = families;                 // ex.: ['Romano','Vitale','Bellini']
     this.rng = opts.rng || Math.random;
+    if (opts.rawState) { this.state = opts.rawState; return; } // hidratação (serverless)
     this.state = this.#initState();
     this.state.round = 0;
     this.startRound(); // revela o 1º evento e resolve a 1ª renda

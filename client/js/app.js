@@ -39,13 +39,20 @@ if (USE_WS) {
   console.log('transporte: long-polling');
 }
 
-async function lpAction(type, extra = {}) {
+async function lpAction(type, extra = {}, _retry = 0) {
   const r = await fetch('/api/action', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type, code, token: lpToken, ...extra }),
   });
   const data = await r.json().catch(() => ({ error: 'resposta inválida' }));
-  if (data.error) { toast('⚠ ' + data.error); return data; }
+  if (data.error) {
+    // erros transitórios (consistência do store serverless): repetir criar/entrar
+    if ((type === 'create_room' || type === 'join_room') && _retry < 3) {
+      await new Promise(res => setTimeout(res, 1200));
+      return lpAction(type, extra, _retry + 1);
+    }
+    toast('⚠ ' + data.error); return data;
+  }
   for (const ev of (data.events || [])) handleNet(ev);
   if (data.token && !lpToken) { lpToken = data.token; startLpLoop(); }
   return data;

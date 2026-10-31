@@ -8,6 +8,7 @@
     "test": "node test/simulate.js 8420"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.2",
     "ws": "^8.22.0"
   }
 }
