@@ -5,8 +5,8 @@
  * Partida solo (1 humano + 3 bots) em CADA dificuldade; o humano joga no
  * automático (fazer_caixa) e aguarda o jogo terminar normalmente.
  */
-const BASE = `http://localhost:${process.argv[2] || 8420}`;
-const DIFFS = ['facil', 'medio', 'dificil'];
+const BASE = /^https?:/.test(process.argv[2] || '') ? process.argv[2] : `http://localhost:${process.argv[2] || 8420}`;
+const DIFFS = process.env.ONLY ? [process.env.ONLY] : ['facil', 'medio', 'dificil'];
 
 async function post(body) {
   const r = await fetch(`${BASE}/api/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
