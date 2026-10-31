@@ -10,9 +10,16 @@ let ws = null, my = null, code = null, state = null, board = null;
 let selFrom = null, selMode = null;      // seleção no tabuleiro
 let lastEventId = null, tutorialShown = false;
 
+// ---------- flag de multiplayer ----------
+// SOLO-ONLY: o jogo expõe apenas partidas contra robôs. O código de multiplayer
+// (salas, joins por código, chat, lista de espera) permanece no repo/server mas
+// NÃO é acessível pela UI. Para reabilitar: MULTIPLAYER = true e restaurar os
+// botões de sala em index.html (marcados com "MULTIPLAYER DISABLED").
+const MULTIPLAYER = false;
+
 // ---------- rede (transporte duplo: WebSocket local / long-polling em produção) ----------
 // Auto-detecção: localhost usa WebSocket; fora (produção/serverless) usa HTTP long-polling.
-const USE_WS = ['localhost', '127.0.0.1'].includes(location.hostname);
+const USE_WS = MULTIPLAYER && ['localhost', '127.0.0.1'].includes(location.hostname);
 let lpToken = null, lpSeq = 0, lpActive = false, lpFailures = 0;
 
 function handleNet(m) {
@@ -21,9 +28,14 @@ function handleNet(m) {
   if (m.type === 'joined') {
     code = m.code;
     $('lobby').classList.add('hidden');
-    if (m.spectator) { $('room').classList.add('hidden'); enterGame(); }
-    else $('room').classList.remove('hidden');
-    $('roomCodeLabel').textContent = code;
+    if (m.spectator) { enterGame(); return; }
+    if (MULTIPLAYER) {
+      $('room').classList.remove('hidden');
+      $('roomCodeLabel').textContent = code;
+    } else {
+      // solo-only: partida contra robôs inicia imediatamente (sem lobby/sala)
+      Promise.resolve(send('ready', { ready: true })).then(() => send('start_game'));
+    }
   }
   if (m.type === 'state') { my = m.you; state = m.state; render(m.players, m.config, m.spectators); }
   if (m.type === 'chat') addChat(m.from, m.text);
@@ -53,8 +65,11 @@ async function lpAction(type, extra = {}, _retry = 0) {
     }
     toast('⚠ ' + data.error); return data;
   }
-  for (const ev of (data.events || [])) handleNet(ev);
+  // code/token/loop ANTES dos eventos: o handler de 'joined' (solo) já envia
+  // ready+start_game e o loop de polling precisa do código da sala
+  if (data.code) code = data.code;
   if (data.token && !lpToken) { lpToken = data.token; startLpLoop(); }
+  for (const ev of (data.events || [])) handleNet(ev);
   return data;
 }
 
@@ -80,32 +95,42 @@ const send = (type, extra = {}) => {
   else lpAction(type, extra);
 };
 
-// ---------- lobby ----------
-$('btnCreate3').onclick = () => createRoom(3);
-$('btnCreate4').onclick = () => createRoom(4);
-$('btnJoin').onclick = () => {
-  const name = $('playerName').value.trim() || 'Anônimo';
-  const c = $('roomCode').value.trim().toUpperCase();
-  if (!c) return toast('Informe o código da sala');
-  send('join_room', { name, code: c });
-};
+// ---------- lobby (SOLO-ONLY) ----------
+// Cria partida contra robôs direto: mesa de 3 (+2 bots) ou 4 (+3 bots) e dificuldade.
+// Fluxos multiplayer (criar sala com código, entrar por código, pronto/iniciar,
+// chat de sala) foram removidos da UI — código do multiplayer preservado no server.
 function createRoom(n, bots = 0) {
   const name = $('playerName').value.trim() || 'Anônimo';
-  const timer = $('optTimer').checked ? 120 : 0;
   const difficulty = $('optDifficulty') ? $('optDifficulty').value : 'medio';
-  send('create_room', { name, players: n, timer, bots, difficulty });
+  send('create_room', { name, players: n, timer: 0, bots, difficulty });
 }
-$('btnSolo3').onclick = () => createRoom(3, 2);
-$('btnSolo4').onclick = () => createRoom(4, 3);
-$('btnReady').onclick = () => { sfx.click(); const btn = $('btnReady'); btn.p = !btn.p; send('ready', { ready: btn.p }); btn.textContent = btn.p ? 'Pronto ✓' : 'Estou pronto'; };
-$('btnStart').onclick = () => { sfx.card(); send('start_game'); };
+$('btnSoloStart').onclick = () => {
+  sfx.click();
+  const n = parseInt(($('optTable') ? $('optTable').value : '3'), 10);
+  createRoom(n === 4 ? 4 : 3, n === 4 ? 3 : 2);
+};
+if (MULTIPLAYER) {
+  // MULTIPLAYER DISABLED (solo-only): handlers preservados para reativação futura.
+  $('btnCreate3').onclick = () => createRoom(3);
+  $('btnCreate4').onclick = () => createRoom(4);
+  $('btnJoin').onclick = () => {
+    const name = $('playerName').value.trim() || 'Anônimo';
+    const c = $('roomCode').value.trim().toUpperCase();
+    if (!c) return toast('Informe o código da sala');
+    send('join_room', { name, code: c });
+  };
+  $('btnReady').onclick = () => { sfx.click(); const btn = $('btnReady'); btn.p = !btn.p; send('ready', { ready: btn.p }); btn.textContent = btn.p ? 'Pronto ✓' : 'Estou pronto'; };
+  $('btnStart').onclick = () => { sfx.card(); send('start_game'); };
+}
 
-// ---------- chat ----------
-$('chatInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && $('chatInput').value.trim()) {
-    send('chat', { text: $('chatInput').value.trim() }); $('chatInput').value = '';
-  }
-});
+// ---------- chat (desativado no solo-only) ----------
+if (MULTIPLAYER) {
+  $('chatInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && $('chatInput').value.trim()) {
+      send('chat', { text: $('chatInput').value.trim() }); $('chatInput').value = '';
+    }
+  });
+}
 function addChat(from, text) {
   const div = document.createElement('div');
   div.innerHTML = `<span class="from">${from}:</span> ${escapeHtml(text)}`;
