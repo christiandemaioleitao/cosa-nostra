@@ -5,10 +5,15 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "test": "node test/simulate.js 8420"
+    "test": "node test/simulate.js 8420",
+    "build:engine": "esbuild client/js/engine-entry.js --bundle --format=iife --define:process.env.BOT_DELAY_MS=\"1200\" --outfile=client/js/engine.bundle.js",
+    "test:solo-client": "node test/solo-client.js"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2",
     "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

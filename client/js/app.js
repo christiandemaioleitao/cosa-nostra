@@ -4,6 +4,7 @@
 import { Board3D } from './board3d.js';
 import { sfx, startAmbient } from './audio.js';
 import { DIST_TYPES, EDGES } from './data-client.js';
+import { LocalSolo } from './solo.js';
 
 const $ = (id) => document.getElementById(id);
 let ws = null, my = null, code = null, state = null, board = null;
@@ -91,18 +92,31 @@ async function lpLoop() {
 function startLpLoop() { if (!lpActive) { lpActive = true; lpLoop(); } }
 
 const send = (type, extra = {}) => {
+  // SOLO client-side: motor + IA rodam no navegador — nenhuma chamada de rede.
+  if (solo) return solo.handleMessage({ type, ...extra });
   if (USE_WS && ws && ws.readyState === 1) ws.send(JSON.stringify({ type, ...extra }));
   else lpAction(type, extra);
 };
 
-// ---------- lobby (SOLO-ONLY) ----------
+// ---------- lobby (SOLO-ONLY, motor client-side) ----------
 // Cria partida contra robôs direto: mesa de 3 (+2 bots) ou 4 (+3 bots) e dificuldade.
+// O motor + IA (server/game/engine.js + bots.js) rodam NO NAVEGADOR via bundle
+// (engine.bundle.js) — sem rede, sem /api/*, sem Vercel Blob.
 // Fluxos multiplayer (criar sala com código, entrar por código, pronto/iniciar,
 // chat de sala) foram removidos da UI — código do multiplayer preservado no server.
+let solo = null;
 function createRoom(n, bots = 0) {
   const name = $('playerName').value.trim() || 'Anônimo';
   const difficulty = $('optDifficulty') ? $('optDifficulty').value : 'medio';
-  send('create_room', { name, players: n, timer: 0, bots, difficulty });
+  if (typeof CosaServerGame === 'undefined') { toast('⚠ Motor do jogo não carregado — recarregue a página.'); return; }
+  code = 'LOCAL';
+  solo = new LocalSolo({
+    name,
+    tableSize: n,
+    bots,
+    difficulty,
+    onEvent: (ev) => handleNet(ev),
+  });
 }
 $('btnSoloStart').onclick = () => {
   sfx.click();
