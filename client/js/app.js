@@ -117,6 +117,9 @@ function createRoom(n, bots = 0) {
     difficulty,
     onEvent: (ev) => handleNet(ev),
   });
+  // 'joined' só APÓS `solo` estar definido, para o fluxo ready/start_game
+  // ser 100% local (zero chamadas /api/*).
+  handleNet({ type: 'joined', code: 'LOCAL', spectator: false });
 }
 $('btnSoloStart').onclick = () => {
   sfx.click();

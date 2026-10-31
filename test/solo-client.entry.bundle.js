@@ -902,7 +902,6 @@ var LocalSolo = class {
     this.turnDeadline = 0;
     this.botFingerprint = null;
     this.botNextAt = 0;
-    this.onEvent({ type: "joined", code: "LOCAL", spectator: false });
     this.iv = setInterval(() => this.tick(), 250);
   }
   stop() {

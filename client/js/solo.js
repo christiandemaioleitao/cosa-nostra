@@ -38,8 +38,6 @@ export class LocalSolo {
     this.my = null;                      // família do humano
     this.timer = 0; this.turnDeadline = 0;
     this.botFingerprint = null; this.botNextAt = 0;
-    // mesma sequência de eventos do fluxo de rede (joined → ready → start_game)
-    this.onEvent({ type: 'joined', code: 'LOCAL', spectator: false });
     this.iv = setInterval(() => this.tick(), 250);
   }
 
