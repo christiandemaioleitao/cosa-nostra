@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cosa Nostra — O Ouro Amarelo da Sicília</title>
+<link rel="stylesheet" href="/css/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- ====== LOBBY / ENTRADA ====== -->
+  <div id="lobby" class="overlay">
+    <div class="panel title-panel">
+      <h1>Cosa Nostra</h1>
+      <h2>O Ouro Amarelo da Sicília</h2>
+      <p class="tagline">Uma disputa silenciosa por influência — 10 pontos coroam o padrone.</p>
+      <div class="lobby-form">
+        <input id="playerName" placeholder="Seu nome" maxlength="20">
+        <div class="row">
+          <button id="btnCreate3" class="gold">Criar sala (3)</button>
+          <button id="btnCreate4" class="gold">Criar sala (4)</button>
+        </div>
+        <div class="row">
+          <input id="roomCode" placeholder="Código da sala" maxlength="8" style="text-transform:uppercase">
+          <button id="btnJoin">Entrar</button>
+        </div>
+        <label class="opt"><input type="checkbox" id="optTimer" checked> Timer por ação (120s)</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SALA / AGUARDO ====== -->
+  <div id="room" class="overlay hidden">
+    <div class="panel">
+      <h3>Sala <span id="roomCodeLabel"></span></h3>
+      <ul id="playerList"></ul>
+      <button id="btnReady">Estou pronto</button>
+      <button id="btnStart" class="gold hidden">Iniciar partida</button>
+      <p class="hint">Compartilhe o código acima com os outros dons.</p>
+    </div>
+  </div>
+
+  <!-- ====== HUD DO JOGO ====== -->
+  <div id="hud" class="hidden">
+    <div id="topbar" class="glass">
+      <div class="fam-tabs" id="famTabs"></div>
+      <div id="roundInfo"></div>
+    </div>
+
+    <div id="myPanel" class="glass">
+      <h4 id="myFam"></h4>
+      <div class="res"><span title="Dinheiro">💰 <b id="rMoney"></b>$</span>
+        <span title="Limões">🍋 <b id="rLemons"></b></span>
+        <span title="Respeito">🎖 <b id="rRespect"></b></span>
+        <span title="Influência">👑 <b id="rInfluence"></b>/10</span>
+        <span title="Reserva">🖐 <b id="rReserve"></b></span></div>
+      <div id="actionButtons"></div>
+      <div id="actionHint"></div>
+    </div>
+
+    <div id="eventPanel" class="glass hidden"><h4>Evento</h4><div id="eventBody"></div></div>
+
+    <div id="chatBox" class="glass">
+      <div id="chatLog"></div>
+      <input id="chatInput" placeholder="Falar...">
+    </div>
+
+    <div id="logPanel" class="glass"><h4>Crônica</h4><div id="logList"></div></div>
+
+    <div id="turnBanner" class="hidden"></div>
+  </div>
+
+  <!-- ====== MODAIS ====== -->
+  <div id="disputeModal" class="overlay hidden">
+    <div class="panel">
+      <h3>Disputa!</h3>
+      <p id="disputeInfo"></p>
+      <p class="hint">Escolha sua Aposta em segredo (0, 1 ou 2$ — paga ao banco).</p>
+      <div class="row">
+        <button data-bet="0">Aposta 0</button><button data-bet="1">Aposta 1</button><button data-bet="2">Aposta 2</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="negotiationModal" class="overlay hidden">
+    <div class="panel">
+      <h3>Negociação</h3>
+      <p id="negotiationInfo"></p>
+      <div class="row"><button id="negAccept" class="gold">Aceitar</button><button id="negReject">Recusar</button></div>
+    </div>
+  </div>
+
+  <div id="negotiateForm" class="overlay hidden">
+    <div class="panel">
+      <h3>Propor negócio</h3>
+      <div class="row"><label>Para:</label><select id="negTo"></select></div>
+      <div class="row"><label>Entrego $:</label><input id="negGiveMoney" type="number" min="0" value="0" style="width:70px">
+        <label>limões:</label><input id="negGiveLemons" type="number" min="0" max="6" value="0" style="width:60px"></div>
+      <div class="row"><label>Peço $:</label><input id="negWantMoney" type="number" min="0" value="0" style="width:70px">
+        <label>limões:</label><input id="negWantLemons" type="number" min="0" max="6" value="0" style="width:60px"></div>
+      <div class="row"><label>Concedo acesso ao porto:</label><select id="negGivePorto"><option value="">—</option></select></div>
+      <div class="row"><button id="negSend" class="gold">Enviar proposta</button><button id="negCancel">Cancelar</button></div>
+    </div>
+  </div>
+
+  <div id="oathModal" class="overlay hidden">
+    <div class="panel">
+      <h3>Moeda de Juramento</h3>
+      <div id="oathBody"></div>
+      <div class="row" id="oathActions"></div>
+    </div>
+  </div>
+
+  <div id="eventCardOverlay" class="overlay hidden"><div class="event-card"><h2 id="eventName"></h2><p id="eventDesc"></p><p class="hint" id="eventTiming"></p></div></div>
+
+  <div id="victoryOverlay" class="overlay hidden">
+    <div class="panel victory"><h1 id="victoryTitle"></h1><p>O Ouro Amarelo tem um novo padrone.</p><button onclick="location.reload()">Nova partida</button></div>
+  </div>
+
+  <div id="tutorial" class="overlay hidden">
+    <div class="panel"><h3>Como se joga</h3>
+      <p>Cada rodada: revela-se um <b>Evento</b>, cobra-se <b>renda e produção</b>, e todos agem <b>duas vezes</b>.</p>
+      <p>Objetivo: chegar a <b>10 de Influência</b> (Influenciar custa 6$ ou 3 Respeito).</p>
+      <p>Ganhe dinheiro com <b>Exportar</b> (2 limões), cobre os bairros com <b>Estabelecer Cobrança</b>, e tome territórios <b>Avançando</b> — nas disputas, aposte em segredo: empate favorece o defensor.</p>
+      <button onclick="document.getElementById('tutorial').classList.add('hidden')">Entendi</button>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

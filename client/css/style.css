@@ -1,0 +1,75 @@
+/* Cosa Nostra — UI: vidro fosco, dourado discreto, serifas para títulos */
+:root{
+  --gold:#c9a35a; --gold-dim:#8a6d33; --ink:#171310; --paper:#efe6d2;
+  --glass:rgba(20,16,12,.72); --glass-light:rgba(40,32,22,.55);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#0b0a08;color:var(--paper);
+  font-family:"Segoe UI",system-ui,sans-serif}
+h1,h2,h3,h4{font-family:Georgia,"Times New Roman",serif;letter-spacing:.04em}
+h1{font-size:2.4rem;color:var(--gold);text-shadow:0 2px 12px rgba(201,163,90,.25)}
+h2{font-size:1.2rem;font-weight:400;color:var(--paper)}
+#scene{position:fixed;inset:0;display:block}
+
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,4,3,.55);backdrop-filter:blur(3px);z-index:50}
+.hidden{display:none!important}
+.panel{background:var(--glass);border:1px solid var(--gold-dim);border-radius:14px;
+  padding:28px 34px;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.04)}
+.title-panel h2{color:var(--gold);margin-bottom:6px}
+.tagline{color:#b7a988;font-style:italic;margin:10px 0 18px;font-size:.9rem}
+.lobby-form .row{display:flex;gap:8px;margin-top:10px;align-items:center}
+input,select{background:rgba(0,0,0,.35);border:1px solid var(--gold-dim);color:var(--paper);
+  padding:9px 12px;border-radius:8px;font-size:.95rem;flex:1;min-width:0}
+button{background:linear-gradient(180deg,#2b221a,#1c1611);border:1px solid var(--gold-dim);
+  color:var(--paper);padding:9px 16px;border-radius:8px;cursor:pointer;font-size:.95rem;transition:.2s}
+button:hover{border-color:var(--gold);color:#fff;transform:translateY(-1px)}
+button.gold{background:linear-gradient(180deg,#4a3a1d,#2c2210);border-color:var(--gold);color:#ffe9bd}
+button:disabled{opacity:.4;cursor:default;transform:none}
+.hint{color:#9c8f74;font-size:.8rem;margin-top:10px}
+.opt{display:block;margin-top:12px;font-size:.85rem;color:#c7b795}
+ul{list-style:none;margin:12px 0}
+ul li{padding:6px 0;border-bottom:1px dashed rgba(201,163,90,.2)}
+
+/* HUD */
+#hud>*{position:fixed;z-index:10}
+.glass{background:var(--glass);border:1px solid var(--gold-dim);border-radius:12px;
+  backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.45);padding:12px 16px}
+#topbar{top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;padding:8px 16px}
+.fam-tabs span{display:inline-block;padding:3px 12px;margin-right:6px;border-radius:14px;font-size:.8rem;
+  border:1px solid transparent;opacity:.65}
+.fam-tabs span.active{opacity:1;border-color:var(--gold);background:rgba(201,163,90,.12)}
+.fam-tabs span.current{box-shadow:0 0 0 1px var(--gold),0 0 12px rgba(201,163,90,.5)}
+#roundInfo{font-size:.85rem;color:#c7b795}
+#myPanel{left:12px;bottom:12px;width:300px}
+#myPanel h4{color:var(--gold);margin-bottom:6px}
+.res{display:flex;flex-wrap:wrap;gap:10px;font-size:.9rem;margin-bottom:10px}
+#actionButtons{display:flex;flex-direction:column;gap:6px}
+#actionButtons button{text-align:left;font-size:.88rem}
+#actionHint{font-size:.75rem;color:#9c8f74;margin-top:8px;min-height:2.2em}
+#eventPanel{right:12px;top:64px;width:260px}
+#eventPanel h4{color:var(--gold);margin-bottom:6px}
+#chatBox{right:12px;bottom:12px;width:290px;height:230px;display:flex;flex-direction:column}
+#chatLog{flex:1;overflow-y:auto;font-size:.82rem;line-height:1.5;padding-right:4px}
+#chatLog .from{color:var(--gold)}
+#chatInput{margin-top:8px;width:100%}
+#logPanel{left:324px;bottom:12px;width:340px;max-height:200px;overflow:hidden;display:flex;flex-direction:column}
+#logPanel h4{color:var(--gold);margin-bottom:4px}
+#logList{overflow-y:auto;font-size:.78rem;line-height:1.55;max-height:150px;color:#cfc3a5}
+#turnBanner{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:20;
+  background:var(--glass);border:1px solid var(--gold);border-radius:20px;padding:8px 26px;
+  font-family:Georgia,serif;color:#ffe9bd;letter-spacing:.06em;box-shadow:0 0 30px rgba(201,163,90,.25)}
+
+/* carta de evento dramática */
+.event-card{background:linear-gradient(160deg,#241c12,#0f0b07);border:2px solid var(--gold);
+  border-radius:16px;padding:46px 60px;text-align:center;max-width:560px;
+  box-shadow:0 0 80px rgba(201,163,90,.35);animation:cardIn .6s ease}
+.event-card h2{font-size:1.9rem;color:var(--gold);margin-bottom:14px}
+@keyframes cardIn{from{transform:rotateY(90deg) scale(.8);opacity:0}to{transform:none;opacity:1}}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.7}}
+.victory{text-align:center;border-width:2px}
+.victory h1{font-size:2.6rem;margin-bottom:10px}
+#toast{position:fixed;bottom:270px;left:50%;transform:translateX(-50%);z-index:60;
+  background:var(--glass);border:1px solid var(--gold);border-radius:10px;padding:10px 22px;
+  color:#ffe9bd;font-size:.9rem;box-shadow:0 8px 30px rgba(0,0,0,.5);transition:opacity .4s}
+@media(max-width:900px){#logPanel,#eventPanel{display:none}#myPanel{width:250px}#chatBox{width:220px;height:170px}}

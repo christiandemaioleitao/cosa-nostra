@@ -1,0 +1,13 @@
+{
+  "name": "cosa-nostra",
+  "version": "1.0.0",
+  "description": "Cosa Nostra — O Ouro Amarelo da Sicília (jogo web multiplayer 3D)",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node test/simulate.js 8420"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}
